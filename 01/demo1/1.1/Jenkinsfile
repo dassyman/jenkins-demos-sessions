@@ -51,19 +51,18 @@ pipeline {
 }
 
 String getVersionSuffix() {
-    if (param.RC) {
+    if (params.RC) {
         return env.VERSION_RC;
-    } else
-    {
+    } else {
         return "${env.VERSION_RC}+ci${env.BUILD_NUMBER}"
     }
 }
 
 void auditTools() {
     sh '''
-         git version
-         #docker version
-         dotnet --list-sdks
-         dotnet --list-runtimes
+        git version
+        #docker version
+        dotnet --list-sdks
+        dotnet --list-runtimes
     '''
 }
