@@ -1,42 +1,34 @@
 pipeline {
     agent any
+    parameters {
+        booleanParam(name: 'RC', defaultValue: false, description: 'Is this a Release Candidate?')
+    }
     environment {
         VERSION = "0.1.0"
         VERSION_RC = "rc.2"
     }
-    stages{
-        //stage to print out all the tool versions that are going to be used
+    stages {
         stage('Audit Tools') {
             steps {
-                sh '''
-                    git version
-                    docker version
-                    dotnet --list-sdks
-                    dotnet --list-runtimes
-                '''
+                auditTools()
             }
         }
         stage('Build') {
-           /* agent any //e.g. if need a docker agent specifically, agent Docker
-            environment{
-                LOG_LEVEL='INFO'
+            environment {
+                VERSION_SUFFIX = getVersionSuffix()
             }
-            */
             steps {
-                echo "Building version ${VERSION} with suffix: ${VERSION_RC}"
+                echo "Building version ${VERSION} with suffix: ${VERSION_SUFFIX}"
                 sh 'dotnet build -p:VersionPrefix="${VERSION}" --version-suffix "${VERSION_RC}" ./01/src/Pi.Web/Pi.Web.csproj'
             }
         }
-        stage('Unit Test'){
+        stage('Unit Test') {
             steps {
-                //change directory to where tests are and do stuff
-                dir('./01/src/'){
-                //need plugin mstest in jenkins
-                    //multiline - put everything between ''
+                dir('./01/src') {
                     sh '''
                         dotnet test --logger "trx;LogFileName=Pi.Math.trx" Pi.Math.Tests/Pi.Math.Tests.csproj
                         dotnet test --logger "trx;LogFileName=Pi.Runtime.trx" Pi.Runtime.Tests/Pi.Runtime.Tests.csproj
-                    ''' 
+                    '''
                     mstest testResultsFile:"**/*.trx", keepLongStdio: true
                 }
             }
@@ -46,5 +38,32 @@ pipeline {
                 sh 'dotnet ./01/src/Pi.Web/bin/Debug/netcoreapp3.1/Pi.Web.dll'
             }
         }
+        stage('Publish') {
+            when {
+                expression { return params.RC }
+            }
+            steps {
+                sh 'dotnet publish -p:VersionPrefix="${VERSION}" --version-suffix "${VERSION_RC}" ./01/src/Pi.Web/Pi.Web.csproj -o ./out'
+                archiveArtifacts('out/')
+            }
+        }
     }
+}
+
+String getVersionSuffix() {
+    if (param.RC) {
+        return env.VERSION_RC;
+    } else
+    {
+        return "${env.VERSION_RC}+ci${env.BUILD_NUMBER}"
+    }
+}
+
+void auditTools() {
+    sh '''
+         git version
+         #docker version
+         dotnet --list-sdks
+         dotnet --list-runtimes
+    '''
 }
