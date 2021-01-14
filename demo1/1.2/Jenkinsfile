@@ -1,0 +1,40 @@
+pipeline {
+    agent any
+    environment {
+        RELEASE='0.0.1'
+    }
+    stages{
+        stage('Build') {
+            agent any //e.g. if need a docker agent specifically, agent Docker
+            environment{
+                LOG_LEVEL='INFO'
+            }
+            steps {
+                echo "Building release ${RELEASE} with log level ${LOG_LEVEL}"
+            }
+        }
+        stage('Test'){
+            steps {
+                echo "Testing. I can see release ${RELEASE}..."
+            }
+        }
+        stage('Deploy'){
+            input { //text box input, true false only
+                message 'Deploy?'
+                ok 'Do it!'
+                parameters {
+                    string(name: 'TARGET_ENVIRONMENT', defaultValue: 'PROD', description: 'Target deployment env')
+                }
+            }
+            steps {
+                echo "Deploying ${RELEASE} to env ${TARGET_ENVIRONMENT}"
+            }
+        }
+    }
+    post {
+        always {
+            echo 'Prints whether deploy happened or not, success or failure'
+        }
+        //if {}
+    }
+}
