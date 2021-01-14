@@ -1,52 +1,45 @@
+// library identifier: 'jenkins-library-sessions@master',
+//         retriever: modernSCM([$class: 'GitSCMSource', remote: 'https://github.com/JaimeSalas/jenkins-library-sessions.git'])
+
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'mcr.microsoft.com/dotnet/core/sdk:3.1.101'
+        }
+    }
     environment {
-        RELEASE='0.0.1'
+        HOME = '/tmp'
     }
     stages {
-        stage('Build') {
-            environment {
-                LOG_LEVEL='INFO'
-            }
-            parallel {
-                stage('linux-arm64') {
-                    steps {
-                        echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL}"
-                    }
-                } 
-                stage('linux-amd64') {
-                    steps {
-                        echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL}"
-                    }
-                } 
-                stage('windows-amd64') {
-                    steps {
-                        echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL}"
-                    }
-                } 
-            }
-        }
-        stage('Test') {
+        stage('Verify') {
             steps {
-                echo "Testing releas ${RELEASE}..."
+                sh '''
+                    dotnet --list-sdks
+                    dotnet --list-runtimes
+                '''
+                sh 'printenv'
+                sh 'ls -l "$WORKSPACE"'
             }
         }
-        stage('Deploy') {
-            input {
-                message 'Deploy?'
-                ok 'Do it!'
-                parameters {
-                    string(name: 'TARGET_ENVIRONMENT', defaultValue: 'PROD', description: 'Target deployment env')
+        stage('Build') {
+            steps {
+                sh 'dotnet build  "$WORKSPACE/01/src/Pi.Web/Pi.Web.csproj"'
+            }
+        }
+        stage('Unit Test') {
+            steps {
+                dir("$WORKSPACE/01/src") {
+                    sh '''
+                        dotnet test Pi.Math.Tests/Pi.Math.Tests.csproj
+                        dotnet test Pi.Runtime.Tests/Pi.Runtime.Tests.csproj
+                    '''
                 }
             }
-            steps {
-                echo "Deploying ${RELEASE} to env ${TARGET_ENVIRONMENT}"
-            }
         }
-    }
-    post {
-        always {
-            echo 'Prints wether deploy happened or not, success or failure'
+        stage('Smoke Test'){
+            steps {
+                sh 'dotnet "$WORKSPACE/01/src/Pi.Web/bin/Debug/netcoreapp3.1/Pi.Web.dll"'
+            }
         }
     }
 }
