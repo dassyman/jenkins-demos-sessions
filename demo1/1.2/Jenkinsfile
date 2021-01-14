@@ -25,8 +25,6 @@ pipeline {
                         echo "Building release ${RELEASE} for ${STAGE_NAME} with log level ${LOG_LEVEL}"
                     }
                 }
-
-
             }
         }
         stage('Test'){
