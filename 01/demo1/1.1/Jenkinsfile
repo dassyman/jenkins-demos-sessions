@@ -16,6 +16,7 @@ pipeline {
     stages {
         stage('Audit Tools') {
             steps {
+                sh 'hostname'
                 auditTools()
             }
         }
