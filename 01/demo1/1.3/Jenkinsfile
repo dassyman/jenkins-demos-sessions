@@ -1,0 +1,70 @@
+def image
+
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                script {
+                    image = docker.build("poulloua/myapp"+":$BUILD_NUMBER", "--pull -f webapp/Dockerfile webapp") // [1]
+                }
+            }
+        }
+        stage('Smoke Test') {
+            steps {
+                script {
+                    container = image.run() // [2]
+                    container.stop()
+                }
+            }
+        }
+        stage('Push') {
+            steps {
+                script {
+                    withDockerRegistry([credentialsId: "dockerhub_id", url: ""]) { // [3]
+                        image.push()
+                    }
+                }
+            }
+        }
+    }
+}
+
+/*
+pipeline {
+   environment {
+      registry = "poulloua/myapp"
+      registryCredential = 'dockerhub_id'
+      dockerImage = ''
+      }
+   agent any
+   stages {
+      stage('Cloning our Git') {
+         steps {
+            git 'https://github.com/dassyman/jenkins-demos-sessions.git'
+         }
+      }
+      stage('Building our image') {
+         steps{
+            script {
+               dockerImage = docker.build registry + ":$BUILD_NUMBER"
+            }
+         }
+      }
+      stage('Deploy our image') {
+         steps{
+            script {
+               docker.withRegistry( '', registryCredential ) {
+                  dockerImage.push()
+               }
+            }
+         }
+      }
+      stage('Cleaning up') {
+         steps{
+            sh "docker rmi $registry:$BUILD_NUMBER"
+            }
+         }  
+      }
+   }
+   */
